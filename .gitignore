@@ -4,3 +4,4 @@ Silicon Path.app/
 Resources/AppIcon.iconset/
 .DS_Store
 *.xcodeproj/
+windows/build/

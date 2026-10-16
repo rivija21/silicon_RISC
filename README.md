@@ -2,7 +2,8 @@
 
 Follow a C program all the way down to the hardware: tokens → syntax tree → symbols → IR and
 optimisation passes → RISC-V assembly → machine code → linking → a 5-stage pipeline with caches.
-Everything is implemented from scratch in Swift, following Patterson & Hennessy (RISC-V edition).
+Everything is implemented from scratch in Swift (with a C++ port for Windows), following Patterson &
+Hennessy (RISC-V edition).
 
 ## Build and run
 
@@ -12,6 +13,16 @@ open "Silicon Path.app"
 ```
 
 Needs only the Xcode Command Line Tools.
+
+### Windows
+
+A native C++ port lives in [`windows/`](windows/README.md). Build it with MSYS2's MinGW-w64 g++:
+
+```
+cd windows
+mingw32-make -j8
+build\SiliconPath.exe
+```
 
 ## Layout
 
@@ -25,6 +36,7 @@ Needs only the Xcode Command Line Tools.
 | `Sources/SiliconUI` | the app's views (one per station) |
 | `Sources/spcheck` | test driver: hand tests and the random program generator |
 | `Sources/uishot` | renders the window offscreen; `uishot verify` checks the examples |
+| `windows` | the C++ port for Windows: same toolchain and stations, on Win32 + Direct2D |
 
 ## Testing
 
