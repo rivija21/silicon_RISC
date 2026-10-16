@@ -1,0 +1,3 @@
+import SiliconUI
+
+SiliconApp.run()
