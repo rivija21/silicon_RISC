@@ -14,6 +14,18 @@ CXXFLAGS := -std=c++20 -O2 -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00 -DUNICODE -D_UN
 LDFLAGS  := -static -municode
 UI_LIBS  := -ld2d1 -ldwrite -lwindowscodecs -lole32 -luuid -lcomdlg32 -lshell32 -lgdi32 -luser32 -limm32 -ldwmapi
 
+# mingw32-make runs recipes in sh when MSYS2's sh.exe is on PATH, and in cmd.exe
+# otherwise (for example when it is started from PowerShell). cmd.exe echoes the quotes.
+ifeq ($(shell echo "sh"),"sh")
+  native = $(subst /,\,$(1))
+  MKDIR  = if not exist "$(call native,$(1))" mkdir "$(call native,$(1))"
+  RMDIR  = if exist "$(call native,$(1))" rmdir /s /q "$(call native,$(1))"
+else
+  native = $(1)
+  MKDIR  = mkdir -p "$(1)"
+  RMDIR  = rm -rf "$(1)"
+endif
+
 CORE_SRC := $(wildcard src/core/*.cpp)
 UI_SRC   := $(wildcard src/ui/*.cpp)
 CORE_OBJ := $(patsubst src/%.cpp,$(BUILD)/%.o,$(CORE_SRC))
@@ -22,16 +34,21 @@ CHECK_OBJ := $(patsubst src/%.cpp,$(BUILD)/%.o,$(wildcard src/spcheck/*.cpp)) $(
 APP_OBJ  := $(BUILD)/app/main.o $(BUILD)/app/resources.o
 SHOT_OBJ := $(BUILD)/app/uishot.o
 
-.PHONY: all check clean icon
+.PHONY: all check clean icon dirs
 
 all: $(BUILD)/SiliconPath.exe $(BUILD)/spcheck.exe $(BUILD)/uishot.exe
 
-$(BUILD)/%.o: src/%.cpp
-	@mkdir -p $(dir $@)
+# Creates the output folders once, before any parallel compile needs them.
+dirs:
+	@$(call MKDIR,$(BUILD)/core)
+	@$(call MKDIR,$(BUILD)/ui)
+	@$(call MKDIR,$(BUILD)/app)
+	@$(call MKDIR,$(BUILD)/spcheck)
+
+$(BUILD)/%.o: src/%.cpp | dirs
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BUILD)/app/resources.o: res/app.rc res/app.ico res/app.manifest
-	@mkdir -p $(dir $@)
+$(BUILD)/app/resources.o: res/app.rc res/app.ico res/app.manifest | dirs
 	$(WINDRES) -I res res/app.rc -O coff -o $@
 
 $(BUILD)/spcheck.exe: $(CHECK_OBJ) $(CORE_OBJ)
@@ -44,18 +61,17 @@ $(BUILD)/uishot.exe: $(SHOT_OBJ) $(UI_OBJ) $(CORE_OBJ)
 	$(CXX) $(LDFLAGS) -o $@ $^ $(UI_LIBS)
 
 check: $(BUILD)/spcheck.exe
-	$(BUILD)/spcheck.exe verify
-	$(BUILD)/spcheck.exe hand
+	$(call native,$(BUILD)/spcheck.exe) verify
+	$(call native,$(BUILD)/spcheck.exe) hand
 
 # The icon is committed; this redraws it (the same design as scripts/make_icon.swift).
 icon: $(BUILD)/make_icon.exe
-	$(BUILD)/make_icon.exe res/app.ico
+	$(call native,$(BUILD)/make_icon.exe) res/app.ico
 
-$(BUILD)/make_icon.exe: tools/make_icon.cpp
-	@mkdir -p $(BUILD)
+$(BUILD)/make_icon.exe: tools/make_icon.cpp | dirs
 	$(CXX) -std=c++20 -O2 -municode -static -o $@ $< -ld2d1 -ldwrite -lwindowscodecs -lole32 -luuid
 
 clean:
-	rm -rf $(BUILD)
+	$(call RMDIR,$(BUILD))
 
 -include $(wildcard $(BUILD)/*/*.d)
